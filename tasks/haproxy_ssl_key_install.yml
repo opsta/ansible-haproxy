@@ -1,0 +1,47 @@
+---
+- name: Set list of path to look for HAProxy certificate(s)
+  set_fact:
+    haproxy_local_ssl_cert_paths: "{{ haproxy_local_ssl_cert_path }}"
+  with_items: "{{ group_names }}"
+  when: |
+    haproxy_ssl | bool and
+    haproxy_ssl_cert_pem_file is defined
+
+- name: Check if HAProxy certificate path is exists
+  stat:
+    path: "{{ item }}"
+  register: haproxy_cert_check
+  with_first_found:
+    - files: "{{ haproxy_ssl_cert_pem_file }}"
+      paths: "{{ haproxy_local_ssl_cert_paths }}"
+      skip: true
+  when: |
+    haproxy_ssl | bool and
+    haproxy_ssl_cert_pem_file is defined
+  delegate_to: 127.0.0.1
+
+- name: Set HAproxy certificate path
+  set_fact:
+    haproxy_cert_stat: "{{ haproxy_cert_check.results[0].stat }}"
+  when: haproxy_cert_check.results[0].stat is defined
+
+- name: Store SSL PEM
+  slurp:
+    src: "{{ haproxy_cert_stat.path }}"
+  register: _ssl_pem
+  when: |
+    haproxy_cert_stat is defined and
+    haproxy_cert_stat.exists == true
+  delegate_to: 127.0.0.1
+
+- name: Copy SSL PEM file into SSL Directory
+  copy:
+    content: "{{ _ssl_pem.content | b64decode }}"
+    dest: "{{ haproxy_ssl_pem }}"
+    mode: 0644
+    owner: root
+    group: root
+  when: |
+    haproxy_cert_stat is defined and
+    haproxy_cert_stat.exists == true
+  notify: Restart HAProxy Service

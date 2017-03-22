@@ -1,0 +1,11 @@
+---
+- block: # Prepare MariaDB repository
+  - name: Check require packages for custom PPA
+    apt:
+      name: software-properties-common
+      state: present
+
+  - name: Add HAProxy repository
+    apt_repository:
+      repo: "ppa:vbernat/{{ haproxy_ppa_repository }}"
+    when: haproxy_package_name == 'haproxy'

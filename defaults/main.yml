@@ -1,0 +1,62 @@
+---
+haproxy_package_name: haproxy
+haproxy_package_version: 1.7
+haproxy_packages:
+  - "{{ haproxy_package_name }}"
+
+haproxy_service_name: haproxy
+
+haproxy_ppa_repository: "{{ haproxy_package_name }}-{{ haproxy_package_version }}"
+
+haproxy_etc_path: /etc/haproxy
+haproxy_cfg_filepath: "{{ haproxy_etc_path }}/{{ haproxy_service_name }}.cfg"
+
+haproxy_template_file: haproxy.cfg.j2
+haproxy_syslog_server: 127.0.0.1
+haproxy_balance: source
+haproxy_check_rise: 2
+haproxy_check_fall: 3
+haproxy_check_interval: 2000
+haproxy_stats_username: haproxy
+haproxy_stats_password: CHANGEME
+haproxy_forward_http: false
+haproxy_backend_name: "{{ haproxy_service_name }}-back"
+#haproxy_virtual_hosts:
+#  - example.com
+#  - example.org
+haproxy_app_service_name: service-test
+#haproxy_domain_name: example.org
+
+haproxy_server_backend:
+  - name: php-1
+    ip: 10.77.77.60
+    port: 80
+  - name: php-2
+    ip: 10.77.77.90
+    port: 80
+  - name: php-3
+    ip: 10.79.0.22
+    port: 80
+
+
+## HAProxy SSL
+ssl_cipher_suite: "AES128+EECDH:AES128+EDH"
+haproxy_ssl: true
+haproxy_ssl_dh_param: 2048
+haproxy_ssl_self_signed_regen: no
+haproxy_local_ssl_cert_paths: []
+haproxy_local_ssl_cert_path: "{{ playbook_dir }}/files/groups/{{ item }}/{{ haproxy_service_name }}"
+haproxy_ssl_cert_path: /etc/ssl/private
+haproxy_ssl_cert_pem_file: haproxy.pem
+haproxy_ssl_cert: "{{ haproxy_ssl_cert_path }}/haproxy.crt"
+haproxy_ssl_key: "{{ haproxy_ssl_cert_path }}/haproxy.key"
+haproxy_ssl_pem: "{{ haproxy_ssl_cert_path }}/{{ haproxy_ssl_cert_pem_file }}"
+haproxy_ssl_ca_cert: "{{ haproxy_ssl_cert_path }}/haproxy-ca.pem"
+haproxy_ssl_self_signed_subject: "/C=TH/ST=BKK/L=BKK/O=IT/CN=10.77.77.58/subjectAltName=IP.1=10.77.77.58"
+haproxy_ssl_cipher_suite: "{{ ssl_cipher_suite }}"
+
+# Rsyslog
+rsyslog_path: /etc/rsyslog.d
+rsyslog_filename: 49-haproxy.conf
+rsyslog_template_file: "{{ rsyslog_filename }}.j2"
+rsyslog_filepath: "{{ rsyslog_path }}/{{ rsyslog_filename }}"

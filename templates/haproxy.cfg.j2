@@ -1,0 +1,86 @@
+global
+	  log {{ haproxy_syslog_server }} local0
+	  log {{ haproxy_syslog_server }} local1 notice
+	  log-send-hostname {{ inventory_hostname }}
+	  maxconn 4096
+	  tune.bufsize 384000
+	  tune.ssl.default-dh-param 2048
+
+	  # https://cbonte.github.io/haproxy-dconv/1.6/management.html#9.2
+	  # This is a MUST to do blue-green deployment
+	  stats socket /run/haproxy/admin.sock mode 600 level admin
+	  stats timeout 30s
+
+	  # Default SSL material locations
+	  ca-base /etc/ssl/certs
+	  crt-base /etc/ssl/private
+
+	  # Default ciphers to use on SSL-enabled listening sockets.
+	  # For more information, see ciphers(1SSL). This list is from:
+	  #  https://hynek.me/articles/hardening-your-web-servers-ssl-ciphers/
+	  # An alternative list with additional directives can be obtained from
+	  #  https://mozilla.github.io/server-side-tls/ssl-config-generator/?server=haproxy
+	  #ssl-default-bind-ciphers ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:RSA+AESGCM:RSA+AES:!aNULL:!MD5:!DSS
+
+	  # https://cipherli.st/
+	  ssl-default-bind-options no-sslv3 no-tls-tickets
+	  ssl-default-bind-ciphers AES128+EECDH:AES128+EDH
+
+
+defaults
+    log global
+    option dontlognull
+    option redispatch
+    retries 3
+    timeout client 50s
+    timeout connect 10s
+    timeout server 50s
+    maxconn 4096
+
+listen stats
+    bind *:9000
+    mode http
+    stats enable
+    stats uri /
+    stats realm HAProxy\ Statistics
+    stats hide-version
+    stats auth {{ haproxy_stats_username }}:{{ haproxy_stats_password }}
+
+frontend {{ haproxy_app_service_name }}-http-front
+    bind *:80
+    reqadd X-Forwarded-Proto:\ http
+    mode http
+    option httplog
+    option forwardfor except 127.0.0.0/8
+    option http-server-close
+    option httpclose
+{% if haproxy_virtual_hosts is defined %}
+    use_backend {{ haproxy_backend_name }} if { hdr(Host) -i {{ haproxy_virtual_hosts | join(' ') }} }
+{% endif %}
+    default_backend {{ haproxy_backend_name }}
+
+{% if haproxy_ssl_cert_pem_file is defined or haproxy_ssl %}
+# https://cipherli.st/
+frontend {{ haproxy_service_name }}-https-front
+    bind *:443 ssl crt {{ haproxy_ssl_cert_path }}/{{ haproxy_ssl_cert_pem_file }} ciphers AES128+EECDH:AES128+EDH no-sslv3
+    reqadd X-Forwarded-Proto:\ https
+    option tcplog
+    option http-server-close
+    option httpclose
+    #rspadd Strict-Transport-Security:\ max-age=31536000;\ includeSubDomains;\ preload
+    #rspadd X-Frame-Options:\ DENY
+{% if haproxy_virtual_hosts is defined %}
+    use_backend {{ haproxy_backend_name }} if { hdr(Host) -i {{ haproxy_virtual_hosts | join(' ') }} }
+{% endif %}
+    default_backend {{ haproxy_backend_name }}
+{% endif %}
+
+backend {{ haproxy_backend_name }}
+{% if haproxy_forward_http and haproxy_ssl_cert_pem_file is defined %}
+    redirect scheme https code 301 if !{ ssl_fc }
+{% endif %}
+    mode http
+    balance {{ haproxy_balance }}
+{% for item in haproxy_server_backend %}
+    server {{ item.name }} {{ item.ip }}:{{ item.port }} check port {{ item.port }} inter {{ haproxy_check_interval }} rise {{ haproxy_check_rise }} fall {{ haproxy_check_fall }}
+{% endfor %}

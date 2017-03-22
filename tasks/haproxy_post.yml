@@ -1,0 +1,14 @@
+---
+- name: Check rsyslog is installed
+  apt:
+    name: rsyslog
+    state: present
+
+- name: Drop config
+  template:
+    src: "{{ rsyslog_template_file }}"
+    dest: "{{ rsyslog_filepath }}"
+    owner: root
+    group: root
+    mode: 0644
+  notify: Restart Rsyslog Service

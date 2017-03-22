@@ -1,0 +1,17 @@
+---
+- name: Install HAProxy
+  apt:
+     pkg: "{{ item }}"
+     state: latest
+     update_cache: yes
+  with_items:
+    - "{{ haproxy_packages }}"
+
+- name: Drop config
+  template:
+    src: "{{ haproxy_template_file }}"
+    dest: "{{ haproxy_cfg_filepath }}"
+    owner: root
+    group: root
+    mode: 0644
+  notify: Restart HAProxy Service
