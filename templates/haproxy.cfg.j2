@@ -61,7 +61,7 @@ frontend {{ haproxy_app_service_name }}-http-front
 
 {% if haproxy_ssl_cert_pem_file is defined or haproxy_ssl %}
 # https://cipherli.st/
-frontend {{ haproxy_service_name }}-https-front
+frontend {{ haproxy_app_service_name }}-https-front
     bind *:443 ssl crt {{ haproxy_ssl_cert_path }}/{{ haproxy_ssl_cert_pem_file }} ciphers AES128+EECDH:AES128+EDH no-sslv3
     reqadd X-Forwarded-Proto:\ https
     option tcplog
@@ -81,6 +81,13 @@ backend {{ haproxy_backend_name }}
 {% endif %}
     mode http
     balance {{ haproxy_balance }}
-{% for item in haproxy_server_backend %}
+{% if haproxy_srv_list is defined %}
+  {% for item in haproxy_srv_list %}
+    server {{ item.target.split('.')[0] }} {{ lookup('dig', item.target) }}:{{ item.port }} check port {{ item.port }} inter {{ haproxy_check_interval }} rise {{ haproxy_check_rise }} fall {{ haproxy_check_fall }}
+  {% endfor %}
+{% endif %}
+{% if haproxy_server_backend is defined and haproxy_srv_list is not defined %}
+  {% for item in haproxy_server_backend %}
     server {{ item.name }} {{ item.ip }}:{{ item.port }} check port {{ item.port }} inter {{ haproxy_check_interval }} rise {{ haproxy_check_rise }} fall {{ haproxy_check_fall }}
-{% endfor %}
+  {% endfor %}
+{% endif %}

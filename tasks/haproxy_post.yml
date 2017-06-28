@@ -4,7 +4,7 @@
     name: rsyslog
     state: present
 
-- name: Drop config
+- name: Drop rsyslog config
   template:
     src: "{{ rsyslog_template_file }}"
     dest: "{{ rsyslog_filepath }}"

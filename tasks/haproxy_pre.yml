@@ -1,5 +1,5 @@
 ---
-- block: # Prepare MariaDB repository
+- block: # Prepare HAProxy repository
   - name: Check require packages for custom PPA
     apt:
       name: software-properties-common
@@ -7,5 +7,10 @@
 
   - name: Add HAProxy repository
     apt_repository:
-      repo: "ppa:vbernat/{{ haproxy_ppa_repository }}"
+      repo: "{{ haproxy_ppa_repository }}"
     when: haproxy_package_name == 'haproxy'
+
+- name: Get all server list from DNS-SD
+  set_fact:
+    haproxy_srv_list: "{{ lookup('dig', haproxy_srv_fqdn + '/SRV', 'flat=0', wantlist=True) }}"
+  when: haproxy_srv_domain is not none

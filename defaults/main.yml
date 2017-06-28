@@ -5,8 +5,7 @@ haproxy_packages:
   - "{{ haproxy_package_name }}"
 
 haproxy_service_name: haproxy
-
-haproxy_ppa_repository: "{{ haproxy_package_name }}-{{ haproxy_package_version }}"
+haproxy_ppa_repository: "ppa:vbernat/{{ haproxy_package_name }}-{{ haproxy_package_version }}"
 
 haproxy_etc_path: /etc/haproxy
 haproxy_cfg_filepath: "{{ haproxy_etc_path }}/{{ haproxy_service_name }}.cfg"
@@ -20,23 +19,24 @@ haproxy_check_interval: 2000
 haproxy_stats_username: haproxy
 haproxy_stats_password: CHANGEME
 haproxy_forward_http: false
-haproxy_backend_name: "{{ haproxy_service_name }}-back"
+haproxy_backend_name: "{{ haproxy_app_service_name }}-back"
 #haproxy_virtual_hosts:
 #  - example.com
 #  - example.org
 haproxy_app_service_name: service-test
-#haproxy_domain_name: example.org
+haproxy_srv_domain: "{{ os_pdns_domain | default('') }}"
+haproxy_srv_fqdn: "{{ haproxy_app_service_name }}._http._tcp.{{ haproxy_srv_domain }}."
 
-haproxy_server_backend:
-  - name: php-1
-    ip: 10.77.77.60
-    port: 80
-  - name: php-2
-    ip: 10.77.77.90
-    port: 80
-  - name: php-3
-    ip: 10.79.0.22
-    port: 80
+# haproxy_server_backend:
+#   - name: php-1
+#     ip: 10.77.77.60
+#     port: 80
+#   - name: php-2
+#     ip: 10.77.77.90
+#     port: 80
+#   - name: php-3
+#     ip: 10.79.0.22
+#     port: 80
 
 
 ## HAProxy SSL

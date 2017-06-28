@@ -7,7 +7,7 @@
   with_items:
     - "{{ haproxy_packages }}"
 
-- name: Drop config
+- name: Drop HAProxy config
   template:
     src: "{{ haproxy_template_file }}"
     dest: "{{ haproxy_cfg_filepath }}"

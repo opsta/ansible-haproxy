@@ -19,6 +19,7 @@
     haproxy_ssl | bool and
     haproxy_ssl_cert_pem_file is defined
   delegate_to: 127.0.0.1
+  become: false
 
 - name: Set HAproxy certificate path
   set_fact:
@@ -33,6 +34,7 @@
     haproxy_cert_stat is defined and
     haproxy_cert_stat.exists == true
   delegate_to: 127.0.0.1
+  become: false
 
 - name: Copy SSL PEM file into SSL Directory
   copy:
