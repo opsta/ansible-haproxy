@@ -1,7 +1,7 @@
 ---
 - name: Set list of path to look for HAProxy certificate(s)
   set_fact:
-    haproxy_local_ssl_cert_paths: "{{ haproxy_local_ssl_cert_path }}"
+    haproxy_local_ssl_cert_paths: "{{ haproxy_local_ssl_cert_paths }} + [ '{{ haproxy_local_ssl_cert_path }}' ]"
   with_items: "{{ group_names }}"
   when: |
     haproxy_ssl | bool and
