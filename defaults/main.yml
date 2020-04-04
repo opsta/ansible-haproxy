@@ -1,6 +1,6 @@
 ---
 haproxy_package_name: haproxy
-haproxy_package_version: 1.7
+haproxy_package_version: 2.0
 haproxy_packages:
   - "{{ haproxy_package_name }}"
 
@@ -60,3 +60,9 @@ rsyslog_path: /etc/rsyslog.d
 rsyslog_filename: 49-haproxy.conf
 rsyslog_template_file: "{{ rsyslog_filename }}.j2"
 rsyslog_filepath: "{{ rsyslog_path }}/{{ rsyslog_filename }}"
+
+# Search for configure file
+haproxy_search_config_paths: []
+haproxy_search_config_path: "{{ playbook_dir }}/files/groups/{{ item }}/haproxy"
+haproxy_host_config_file_path: "{{ haproxy_host_config_path | default(inventory_hostname) }}/haproxy.cfg.j2"
+haproxy_host_config_ssl_path: "{{ haproxy_host_config_path | default(inventory_hostname) }}/ssl"
