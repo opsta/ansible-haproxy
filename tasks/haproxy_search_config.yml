@@ -1,0 +1,37 @@
+---
+- name: Set list of path to look for local HAProxy configuration directory
+  set_fact:
+    haproxy_search_config_paths: "{{ haproxy_search_config_paths }} + [ '{{ haproxy_search_config_path }}' ]"
+  with_items: "{{ group_names }}"
+
+- name: Check if HAProxy configuration directory exists
+  stat:
+    path: "{{ item }}"
+  register: haproxy_config_check
+  become: false
+  delegate_to: 127.0.0.1
+  with_first_found:
+    - files: "{{ haproxy_search_config_paths }}"
+      skip: true
+
+- name: Set HAProxy configuration directory
+  set_fact:
+    haproxy_host_config_path: "{{ haproxy_config_check.results[0].stat.path }}"
+  when:
+    - haproxy_config_check.results[0] is defined
+    - haproxy_config_check.results[0].stat is defined
+    - haproxy_config_check.results[0].stat.isdir
+
+- name: Check if HAProxy template configuration file is exists
+  stat:
+    path: "{{ haproxy_host_config_file_path }}"
+  become: false
+  delegate_to: 127.0.0.1
+  register: haproxy_config_check
+
+- name: Check if HAProxy SSL certificates is exists
+  stat:
+    path: "{{ haproxy_host_config_ssl_path }}"
+  become: false
+  delegate_to: 127.0.0.1
+  register: haproxy_config_ssl_check

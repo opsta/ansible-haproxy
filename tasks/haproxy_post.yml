@@ -1,4 +1,13 @@
 ---
+- name: Copy HAProxy configuration file
+  template:
+    src: "{{ haproxy_host_config_file_path if haproxy_config_check.stat.exists else haproxy_template_file }}"
+    dest: "{{ haproxy_cfg_filepath }}"
+    owner: root
+    group: root
+    mode: 0644
+  notify: Restart HAProxy Service
+
 - name: Check rsyslog is installed
   apt:
     name: rsyslog

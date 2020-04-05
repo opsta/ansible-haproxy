@@ -1,8 +1,9 @@
 ---
-- include: haproxy_pre.yml
-- include: haproxy_install.yml
+- include_tasks: haproxy_pre.yml
+- include_tasks: haproxy_install.yml
 
-- include: haproxy_ssl.yml
+- include_tasks: haproxy_ssl.yml
   when: haproxy_ssl | bool
 
-- include: haproxy_post.yml
+- include_tasks: haproxy_search_config.yml
+- include_tasks: haproxy_post.yml
