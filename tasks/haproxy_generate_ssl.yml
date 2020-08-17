@@ -1,0 +1,43 @@
+---
+- name: Generate CA private key (4096 bits, RSA)
+  openssl_privatekey:
+    path: "{{ haproxy_ssl_cert_private_key }}"
+
+- name: Generate CA public key
+  openssl_publickey:
+    path: "{{ haproxy_ssl_cert_public_key }}"
+    privatekey_path: "{{ haproxy_ssl_cert_private_key }}"
+
+- name: Generate an OpenSSL Certificate Signing Request for CA
+  openssl_csr:
+    path: "{{ haproxy_ssl_cert_csr }}"
+    privatekey_path: "{{ haproxy_ssl_cert_private_key }}"
+    CN: "{{ haproxy_ssl_subject.CN | default(omit) }}"
+    C: "{{ haproxy_ssl_subject.C | default(omit) }}"
+    ST: "{{ haproxy_ssl_subject.ST | default(omit) }}"
+    L: "{{ haproxy_ssl_subject.L | default(omit) }}"
+    O: "{{ haproxy_ssl_subject.O | default(omit) }}"
+    OU: "{{ haproxy_ssl_subject.OU | default(omit) }}"
+    key_usage: "{{ haproxy_ssl_attributes.key_usage }}"
+    key_usage_critical: "{{ haproxy_ssl_attributes.key_usage_critical }}"
+    basic_constraints: "{{ haproxy_ssl_attributes.basic_constraints }}"
+    basic_constraints_critical: "{{ haproxy_ssl_attributes.basic_constraints_critical }}"
+
+- name: Generate a Self Signed CA certificate
+  openssl_certificate:
+    path: "{{ haproxy_ssl_cert_file }}"
+    privatekey_path: "{{ haproxy_ssl_cert_private_key }}"
+    csr_path: "{{ haproxy_ssl_cert_csr }}"
+    provider: selfsigned
+
+- name: Get CA certificate information
+  openssl_certificate_info:
+    path: "{{ haproxy_ssl_cert_file }}"
+  register: result
+
+- name: Dump information
+  debug:
+    var: result
+
+- name: Merge CRT and Key
+  shell: "cat {{ haproxy_ssl_cert_file }} {{ haproxy_ssl_cert_private_key }} > {{ haproxy_ssl_cert_pem }}"
