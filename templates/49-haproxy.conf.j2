@@ -1,3 +1,5 @@
+{{ ansible_managed | comment }}
+
 # Create an additional socket in haproxy's chroot in order to allow logging via
 # /dev/log to chroot'ed HAProxy processes
 #$AddUnixListenSocket /var/lib/haproxy/dev/log

@@ -1,3 +1,5 @@
+{{ ansible_managed | comment }}
+
 global
     log {{ haproxy_syslog_server }} local0
     log {{ haproxy_syslog_server }} local1 notice
