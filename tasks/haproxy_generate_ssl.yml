@@ -1,9 +1,11 @@
 ---
 - name: Generate CA private key (4096 bits, RSA)
+  when: not __private_key_preflight.stat.exists
   openssl_privatekey:
     path: "{{ haproxy_ssl_cert_private_key }}"
 
 - name: Generate CA public key
+  when: not __public_key_preflight.stat.exists
   openssl_publickey:
     path: "{{ haproxy_ssl_cert_public_key }}"
     privatekey_path: "{{ haproxy_ssl_cert_private_key }}"
@@ -24,6 +26,7 @@
     basic_constraints_critical: "{{ haproxy_ssl_attributes.basic_constraints_critical }}"
 
 - name: Generate a Self Signed CA certificate
+  when: not __cert_file_preflight.stat.exists or not __private_key_preflight.stat.exists
   openssl_certificate:
     path: "{{ haproxy_ssl_cert_file }}"
     privatekey_path: "{{ haproxy_ssl_cert_private_key }}"
@@ -33,11 +36,11 @@
 - name: Get CA certificate information
   openssl_certificate_info:
     path: "{{ haproxy_ssl_cert_file }}"
-  register: result
+  register: _result
 
 - name: Dump information
   debug:
-    var: result
+    var: _result
 
 - name: Merge CRT and Key
   shell: "cat {{ haproxy_ssl_cert_file }} {{ haproxy_ssl_cert_private_key }} > {{ haproxy_ssl_cert_pem }}"
