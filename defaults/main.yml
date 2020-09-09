@@ -1,6 +1,6 @@
 ---
 haproxy_package_name: haproxy
-haproxy_package_version: 2.0
+haproxy_package_version: 2.2
 haproxy_packages:
   - "{{ haproxy_package_name }}"
 
@@ -12,48 +12,75 @@ haproxy_cfg_filepath: "{{ haproxy_etc_path }}/{{ haproxy_service_name }}.cfg"
 
 haproxy_template_file: haproxy.cfg.j2
 haproxy_syslog_server: 127.0.0.1
-haproxy_balance: source
-haproxy_check_rise: 2
-haproxy_check_fall: 3
-haproxy_check_interval: 2000
+haproxy_default_balance: source
+haproxy_default_check_rise: 2
+haproxy_default_check_fall: 3
+haproxy_default_check_interval: 2000
 haproxy_stats_username: haproxy
 haproxy_stats_password: CHANGEME
-haproxy_forward_http: false
-haproxy_backend_name: "{{ haproxy_app_service_name }}-back"
-#haproxy_virtual_hosts:
-#  - example.com
-#  - example.org
-haproxy_app_service_name: service-test
-haproxy_srv_domain: "{{ os_pdns_domain | default('') }}"
-haproxy_srv_fqdn: "{{ haproxy_app_service_name }}._http._tcp.{{ haproxy_srv_domain }}."
 
-# haproxy_server_backend:
-#   - name: php-1
-#     ip: 10.77.77.60
-#     port: 80
-#   - name: php-2
-#     ip: 10.77.77.90
-#     port: 80
-#   - name: php-3
-#     ip: 10.79.0.22
-#     port: 80
+haproxy_frontend_list: []
+#   - name: front-http
+#     bind_ip: "*"
+#     bind_port: "80"
+#     mode: http
+#     default_backend: back-http
+#     ssl: # Optional
+#       - cert_path: /etc/ssl/private/ca.pem
+#     virtual_hosts: # Optional
+#       - hosts:
+#           - example-1.com
+#           - example-2.com
+#         backend_name: back-a-virt1
+#       - hosts:
+#           - example-3.com
+#           - example-4.com
+#         backend_name: back-a-virt2
 
+haproxy_backend_list: []
+#   - name: back-http
+#     mode: http
+#     balance: source
+#     forward_https: true # Optional
+#     servers:
+#       - name: back-a-1
+#         ip: 0.0.0.0
+#         port: 9000
+#         check_interval: 2000 # Optional
+#         check_rise: 2 # Optional
+#         check_fall: 3 # Optional
+#       - name: back-a-2
+#         ip: 0.0.0.0
+#         port: 9100
+#         check_interval: 2000 # Optional
+#         check_rise: 2 # Optional
+#         check_fall: 3 # Optional
 
 ## HAProxy SSL
-ssl_cipher_suite: "AES128+EECDH:AES128+EDH"
-haproxy_ssl: true
-haproxy_ssl_dh_param: 2048
-haproxy_ssl_self_signed_regen: no
-haproxy_local_ssl_cert_paths: []
-haproxy_local_ssl_cert_path: "{{ playbook_dir }}/files/groups/{{ item }}/{{ haproxy_service_name }}"
+## TODO add support for multiple certs
+haproxy_ssl_generate: false
 haproxy_ssl_cert_path: /etc/ssl/private
-haproxy_ssl_cert_pem_file: haproxy.pem
-haproxy_ssl_cert: "{{ haproxy_ssl_cert_path }}/haproxy.crt"
-haproxy_ssl_key: "{{ haproxy_ssl_cert_path }}/haproxy.key"
-haproxy_ssl_pem: "{{ haproxy_ssl_cert_path }}/{{ haproxy_ssl_cert_pem_file }}"
-haproxy_ssl_ca_cert: "{{ haproxy_ssl_cert_path }}/haproxy-ca.pem"
-haproxy_ssl_self_signed_subject: "/C=TH/ST=BKK/L=BKK/O=IT/CN=10.77.77.58/subjectAltName=IP.1=10.77.77.58"
-haproxy_ssl_cipher_suite: "{{ ssl_cipher_suite }}"
+haproxy_ssl_cert_file: "{{ haproxy_ssl_cert_path }}/haproxy.crt"
+haproxy_ssl_cert_private_key: "{{ haproxy_ssl_cert_path }}/haproxy.key"
+haproxy_ssl_cert_public_key: "{{ haproxy_ssl_cert_path }}/haproxy.pub"
+haproxy_ssl_cert_pem: "{{ haproxy_ssl_cert_path }}/haproxy.pem"
+haproxy_ssl_cert_csr: "{{ haproxy_ssl_cert_path }}/haproxy.csr"
+haproxy_ssl_subjects:
+  CN: example.com
+  C: TH
+  ST: Bangkok
+  L: Bangkok
+  O: IT
+  OU: IT
+haproxy_ssl_attributes:
+  key_usage:
+    - digitalSignature
+    - keyCertSign
+    - cRLSign
+  key_usage_critical: yes
+  basic_constraints: 
+    - CA:TRUE
+  basic_constraints_critical: yes
 
 # Rsyslog
 rsyslog_path: /etc/rsyslog.d

@@ -1,41 +1,37 @@
+{{ ansible_managed | comment }}
+
 global
-	  log {{ haproxy_syslog_server }} local0
-	  log {{ haproxy_syslog_server }} local1 notice
-	  log-send-hostname {{ inventory_hostname }}
-	  maxconn 4096
-	  tune.bufsize 384000
-	  tune.ssl.default-dh-param 2048
+    log {{ haproxy_syslog_server }} local0
+    log {{ haproxy_syslog_server }} local1 notice
+    log-send-hostname {{ inventory_hostname }}
+    chroot /var/lib/haproxy
+    maxconn 4096
+    tune.bufsize 384000
+    tune.ssl.default-dh-param 2048
 
-	  # https://cbonte.github.io/haproxy-dconv/1.6/management.html#9.2
-	  # This is a MUST to do blue-green deployment
-	  stats socket /run/haproxy/admin.sock mode 600 level admin
-	  stats timeout 30s
+    stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
+    stats timeout 30s
+    user haproxy
+    group haproxy
+    daemon
 
-	  # Default SSL material locations
-	  ca-base /etc/ssl/certs
-	  crt-base /etc/ssl/private
+    # Default SSL material locations
+    ca-base /etc/ssl/certs
+    crt-base /etc/ssl/private
 
-	  # Default ciphers to use on SSL-enabled listening sockets.
-	  # For more information, see ciphers(1SSL). This list is from:
-	  #  https://hynek.me/articles/hardening-your-web-servers-ssl-ciphers/
-	  # An alternative list with additional directives can be obtained from
-	  #  https://mozilla.github.io/server-side-tls/ssl-config-generator/?server=haproxy
-	  #ssl-default-bind-ciphers ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:RSA+AESGCM:RSA+AES:!aNULL:!MD5:!DSS
-
-	  # https://cipherli.st/
-	  ssl-default-bind-options no-sslv3 no-tls-tickets
-	  ssl-default-bind-ciphers AES128+EECDH:AES128+EDH
-
+    # See: https://ssl-config.mozilla.org/#server=haproxy&server-version=2.0.3&config=intermediate
+    ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
+    ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
+    ssl-default-bind-options ssl-min-ver TLSv1.2 no-tls-tickets
 
 defaults
-    log global
-    option dontlognull
+    log	global
+    option	dontlognull
     option redispatch
     retries 3
-    timeout client 50s
     timeout connect 10s
-    timeout server 50s
-    maxconn 4096
+    timeout client  50s
+    timeout server  50s
 
 listen stats
     bind *:9000
@@ -46,48 +42,49 @@ listen stats
     stats hide-version
     stats auth {{ haproxy_stats_username }}:{{ haproxy_stats_password }}
 
-frontend {{ haproxy_app_service_name }}-http-front
-    bind *:80
-    reqadd X-Forwarded-Proto:\ http
-    mode http
+{% if haproxy_frontend_list is defined and haproxy_frontend_list | length > 0 %}
+{% for frontend in haproxy_frontend_list %}
+frontend {{ frontend.name }}
+{% if frontend.ssl is defined and frontend.ssl | length > 0 %}
+    bind {{ frontend.bind_ip }}:443 ssl{% for item in frontend.ssl %} crt {{ item.cert_path }}{% endfor %}
+
+    option tcplog
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% elif frontend.mode == 'http' %}
     option httplog
     option forwardfor except 127.0.0.0/8
-    option http-server-close
-    option httpclose
-{% if haproxy_virtual_hosts is defined %}
-    use_backend {{ haproxy_backend_name }} if { hdr(Host) -i {{ haproxy_virtual_hosts | join(' ') }} }
-{% endif %}
-    default_backend {{ haproxy_backend_name }}
-
-{% if haproxy_ssl_cert_pem_file is defined or haproxy_ssl %}
-# https://cipherli.st/
-frontend {{ haproxy_app_service_name }}-https-front
-    bind *:443 ssl crt {{ haproxy_ssl_cert_path }}/{{ haproxy_ssl_cert_pem_file }} ciphers AES128+EECDH:AES128+EDH no-sslv3
-    reqadd X-Forwarded-Proto:\ https
+{% else %}
     option tcplog
+{% endif %}
+{% if frontend.bind_port is defined and frontend.bind_port != '443' %}
+    bind {{ frontend.bind_ip }}:{{ frontend.bind_port }}
+{% endif %}
+    mode {{ frontend.mode }}
+{% if frontend.mode == 'http' %}
     option http-server-close
     option httpclose
-    #rspadd Strict-Transport-Security:\ max-age=31536000;\ includeSubDomains;\ preload
-    #rspadd X-Frame-Options:\ DENY
-{% if haproxy_virtual_hosts is defined %}
-    use_backend {{ haproxy_backend_name }} if { hdr(Host) -i {{ haproxy_virtual_hosts | join(' ') }} }
 {% endif %}
-    default_backend {{ haproxy_backend_name }}
+{% if frontend.virtual_hosts is defined and frontend.virtual_hosts | length > 0 %}
+{% for virtual_host in frontend.virtual_hosts %}
+    use_backend {{ virtual_host.backend_name }} if { hdr(Host) -i {{ virtual_host.hosts | join(' ') }} }
+{% endfor %}
+{% endif %}
+    default_backend {{ frontend.default_backend }}
+{% endfor %}
 {% endif %}
 
-backend {{ haproxy_backend_name }}
-{% if haproxy_forward_http and haproxy_ssl_cert_pem_file is defined %}
+{% if haproxy_backend_list is defined and haproxy_backend_list | length > 0 %}
+{% for backend in haproxy_backend_list %}
+backend {{ backend.name }}
+{% if backend.forward_https is defined and backend.forward_https and backend.mode == 'http' %}
     redirect scheme https code 301 if !{ ssl_fc }
 {% endif %}
-    mode http
-    balance {{ haproxy_balance }}
-{% if haproxy_srv_list is defined %}
-  {% for item in haproxy_srv_list %}
-    server {{ item.target.split('.')[0] }} {{ lookup('dig', item.target) }}:{{ item.port }} check port {{ item.port }} inter {{ haproxy_check_interval }} rise {{ haproxy_check_rise }} fall {{ haproxy_check_fall }}
-  {% endfor %}
+    mode {{ backend.mode }}
+    balance {{ backend.balance | default(haproxy_default_balance) }}
+{% if backend.servers is defined and backend.servers | length > 0 %}
+{% for server in backend.servers %}
+    server {{ server.name }} {{ server.ip }}:{{ server.port }} check port {{ server.port }} inter {{ server.check_interval | default(haproxy_default_check_interval) }} rise {{ server.check_rise | default(haproxy_default_check_rise) }} fall {{ server.check_fall | default(haproxy_default_check_fall) }}
+{% endfor %}
 {% endif %}
-{% if haproxy_server_backend is defined and haproxy_srv_list is not defined %}
-  {% for item in haproxy_server_backend %}
-    server {{ item.name }} {{ item.ip }}:{{ item.port }} check port {{ item.port }} inter {{ haproxy_check_interval }} rise {{ haproxy_check_rise }} fall {{ haproxy_check_fall }}
-  {% endfor %}
+{% endfor %}
 {% endif %}

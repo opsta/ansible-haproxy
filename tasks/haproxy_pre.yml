@@ -1,11 +1,18 @@
 ---
-- name: Get all server list from DNS-SD
-  set_fact:
-    haproxy_srv_list: "{{ lookup('dig', haproxy_srv_fqdn + '/SRV', 'flat=0', wantlist=True) }}"
-  when:
-    - haproxy_srv_domain is defined
-    - haproxy_srv_domain is not none
-    - not haproxy_srv_domain | trim == ''
+- name: Check existing private key
+  stat:
+    path: "{{ haproxy_ssl_cert_private_key }}"
+  register: __private_key_preflight
+
+- name: Check existing private key
+  stat:
+    path: "{{ haproxy_ssl_cert_public_key }}"
+  register: __public_key_preflight
+
+- name: Check existing certificate file
+  stat:
+    path: "{{ haproxy_ssl_cert_file }}"
+  register: __cert_file_preflight
 
 - block: # Prepare HAProxy repository
   - name: Check require packages for custom PPA
